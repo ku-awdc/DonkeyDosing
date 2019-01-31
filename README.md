@@ -24,7 +24,8 @@ update.packages(ask=FALSE, type='binary')
 The DonkeyDosing package can then be installed from the online source code by running the following code from within R:
 
 ```r
-devtools::install_github('https://github.com/ku-awdc/DonkeyDosing', dependencies=FALSE, build = TRUE, build_opts = c("--no-resave-data", "--no-manual"))
+devtools::install_github('https://github.com/ku-awdc/DonkeyDosing', dependencies=FALSE, 
+	build = TRUE, build_opts = c("--no-resave-data", "--no-manual"))
 ```
 
 If this operation fails, please ensure that R is installed in a location that does not contain any spaces in the path (i.e. NOT within 'Program Files').
