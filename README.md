@@ -14,9 +14,10 @@ This R package was created as part of a research project ending in 2018 that was
 
 ### Installation
 
-To install this package, the free software R must first be installed from http://cran.r-project.org (installation of RStudio from https://www.rstudio.com is also recommended).  It is strongly recommended that R be installed in a location without spaces in the (absolute) file path:  this is particularly relevant on Windows where the default installation of 'Program Files' will likely lead to problems with installing packages from source.  The following standard R packages are also required to be installed from within R: devtools, tidyverse, hellno, lmerTest, darksky and R.rsp.  Please also ensure that the most recent versions of these packages are installed by running e.g.:
+To install this package, the free software R must first be installed from http://cran.r-project.org (installation of RStudio from https://www.rstudio.com is also recommended).  It is strongly recommended that R be installed in a location without spaces in the (absolute) file path:  this is particularly relevant on Windows where the default installation of 'Program Files' will likely lead to problems with installing packages from source.  The following standard R packages are also required to be installed from within R: devtools, tidyverse, hellno, lmerTest, darksky and R.rsp.  Please also ensure that the most recent versions of these packages are installed.  The following R code installs the necessary dependent packages and then updates all packages (this should work on Windows and MacOS):
 
 ```r
+install.packages(c('devtools', 'tidyverse', 'hellno', 'lmerTest', 'darksky', 'R.rsp'), type='binary')
 update.packages(ask=FALSE, type='binary')
 ```
 
