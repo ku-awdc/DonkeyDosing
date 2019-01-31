@@ -1,0 +1,41 @@
+Package: DonkeyDosing
+Type: Package
+Title: Support software for the Donkey Sanctuary dosing support tool
+Version: 0.9.9-1
+Authors@R: c(person("Matthew", "Denwood", role=c("aut","cre"), email="md@sund.ku.dk"),
+             person("Stuart", "Norris", role="ctb"))
+Maintainer: Matthew Denwood <md@sund.ku.dk>
+Description: This package contains R scripts necessary to import the standardised
+    data from data archives and/or previous years' dosing support tools in Excel,
+	re-run the relevant statistical models, generate updated coefficients and summary
+	statistics for each animal, and output the required material necessary to populate
+	the dosing support tool for next year's sampling.  See the included vignette for
+	more details, including examples of other analyses that could be done on the data.
+	This package was developed as part of a research project funded by the Donkey Sanctuary.
+Depends:
+    R (>= 3.0.0),
+	tidyverse
+Imports:
+	stats,
+	methods,
+	parallel,
+	MASS,
+	hellno,
+	dplyr,
+	ggplot2,
+	broom,
+	tibble (>= 2.0.0),
+	scales,
+	rlang,
+	readxl,
+	lmerTest,
+	lme4,
+	darksky
+Suggests: 
+    R.rsp
+VignetteBuilder: R.rsp
+License: GPL-3 | file LICENSE
+URL: https://github.com/ku-awdc/DonkeyDosing
+Encoding: UTF-8
+LazyData: true
+RoxygenNote: 6.1.1

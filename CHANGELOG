@@ -1,0 +1,23 @@
+UNRESOLVED ISSUES/BUGS
+
+Several: marked as TODO in the code files
+
+Clean up existing check files, and add a new one to verify running the model with the example data
+
+
+FEATURES TO BE IMPLEMENTED
+
+The facility to automatically scrape weather data and put it into a format for easier copy/pasting into Excel may be implemented in the future by Stuart
+
+Refinements to the user interface
+
+Implement the package vignette
+
+
+
+VERSION HISTORY
+
+
+Version 0.9.9
+
+- First version uploaded to Github
