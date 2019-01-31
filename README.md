@@ -23,7 +23,7 @@ update.packages(ask=FALSE, type='binary')
 The DonkeyDosing package can then be installed from the online source code by running the following code from within R:
 
 ```r
-devtools::install_github('https://github.com/ku-awdc/DonkeyDosing')
+devtools::install_github('https://github.com/ku-awdc/DonkeyDosing', dependencies=FALSE, build=TRUE, build_vignettes = TRUE)
 ```
 
 If this operation fails, please ensure that R is installed in a location that does not contain any spaces in the path (i.e. NOT within 'Program Files').
@@ -39,7 +39,7 @@ library('DonkeyDosing')
 vignette('DonkeyDosing')
 ```
 
-The vignette that this command opens gives a more complete description of how to use the package.  The vignette can also be accessed using a web browser directly from:  https://github.com/ku-awdc/DonkeyDosing/inst/vignette_source/DonkeyDosing.html
+The vignette that this command opens gives a more complete description of how to use the package.  The vignette can also be accessed using a web browser directly from:  https://github.com/ku-awdc/DonkeyDosing/blob/master/inst/vignette_source/DonkeyDosing.md
 
 ---
 
