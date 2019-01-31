@@ -39,7 +39,9 @@ library('DonkeyDosing')
 vignette('DonkeyDosing')
 ```
 
-The vignette that this command opens gives a more complete description of how to use the package.  The vignette can also be accessed using a web browser directly from:  https://github.com/ku-awdc/DonkeyDosing/blob/master/inst/vignette_source/DonkeyDosing.md
+The vignette that this command opens gives a more complete description of how to use the package.  The vignette can also be accessed using a web browser directly from:
+
+https://github.com/ku-awdc/DonkeyDosing/blob/master/inst/vignette_source/DonkeyDosing.md
 
 ---
 
