@@ -56,7 +56,9 @@ dosing_sheet <- function(year, farm, excel_file, excel_sheet, all_locations){
 	if((year %in% 2014:2015 && week_offset!=1) || (year %in% 2016:2017 && week_offset!=0))
 		warning('Possible week offset problem')
 
-
+	# Retain the raw data for use when creating next years' sheet:
+	rawdata <- data %>% slice(-1)
+	
 	# Remove the first row (dates) and any white space at the bottom:
 	data <- data %>%
 		slice(-1) %>%
@@ -172,5 +174,5 @@ dosing_sheet <- function(year, farm, excel_file, excel_sheet, all_locations){
 		allfec$LastDoseTest <- NULL
 	}
 	
-	return(list(allanimals=allanimals, allfec=allfec))
+	return(list(allanimals=allanimals, allfec=allfec, rawdata=rawdata))
 }

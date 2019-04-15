@@ -55,7 +55,7 @@ get_excel_weather <- function(weather, year){
 		select(Year, Week, WeekDay, Month, Day, Temp_high, Temp_avg, Temp_low, Rel_Humidity_avg, Abs_Humidity_avg) %>%
 		mutate_at(vars(.data$Temp_high:.data$Abs_Humidity_avg), round, digits=1)
 
-	write.csv(allweather, file='weather_2018.csv', row.names=FALSE)
+	#write.csv(allweather, file='weather_2018.csv', row.names=FALSE)
 	return(allweather)
 }
 
