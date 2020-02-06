@@ -8,7 +8,7 @@ dosing_sheet <- function(year, farm, excel_file, excel_sheet, all_locations){
 
 	if(!is.character(excel_file) || length(excel_file)!=1 || !( grepl('\\.xlsx$', excel_file) || grepl('\\.xls$', excel_file) ))
 		stop('The specified excel_file argument must be a length 1 character string specifying a file with a .xlsx or .xls file extension')
-	
+
 	lmatch <- all_locations %>% filter(.data$Farm==farm, .data$Year==year)
 	if(nrow(lmatch)==0)
 		stop(paste0('Location data for the farm "', farm, '" and year ', year, ' is not available - import the locations first using AddLocations'))
@@ -44,11 +44,15 @@ dosing_sheet <- function(year, farm, excel_file, excel_sheet, all_locations){
 	# Should probably stick to a system where weeks start on Monday and 1st jan is in week 1
 
 	# See if a week numbering offset is needed for R to parse the week number:
-	first_fec_date <- which(grepl('^F[[:digit:]]',names(data)) & !is.na(data[1,]) & !data[1,]=='')[1]
+	first_fec_date <- which(grepl('^F[[:digit:]]',names(data)) & !is.na(data[1,]) & !data[1,]=='')
+	if(length(first_fec_date)==0){
+		stop(paste0('No reference/check date provided for farm ', farm, ' and year ', year, ': ensure that the second row of the Excel sheet contains at least one date corresponding to the week number, and that this row is formatted as a date in Excel'))
+	}
+	first_fec_date <- first_fec_date[1]
 	wk <- as.numeric(gsub('[[:alpha:]]','',names(data)[first_fec_date]))
 	dt <- as.Date('1899-12-30')+as.numeric(data[1, first_fec_date])
 	if(is.na(dt)){
-		stop(paste0('Unable to read the date provided for the ', names(data)[first_fec_date], ' column for farm ', farm, ' and year ', year, ': ensure that the second row of the Excel sheet contains at least one date corresponding to the week number, and that this row is formatted as a date in Excel'))
+		stop(paste0('Unable to read the reference/check date provided for the ', names(data)[first_fec_date], ' column for farm ', farm, ' and year ', year, ': ensure that the second row of the Excel sheet contains at least one date corresponding to the week number, and that this row is formatted as a date in Excel'))
 	}
 	rwk <- as.numeric(strftime(dt, '%W'))
 
@@ -58,7 +62,7 @@ dosing_sheet <- function(year, farm, excel_file, excel_sheet, all_locations){
 
 	# Retain the raw data for use when creating next years' sheet:
 	rawdata <- data %>% slice(-1)
-	
+
 	# Remove the first row (dates) and any white space at the bottom:
 	data <- data %>%
 		slice(-1) %>%
@@ -146,8 +150,10 @@ dosing_sheet <- function(year, farm, excel_file, excel_sheet, all_locations){
 
 	allfec <- as.data.frame(fecdata) %>% filter(!is.na(.data$AnimalID), !is.na(.data$Year))
 
-	# Re-create dates as the monday of the relevant week:
-	allfec$Monday <- as.Date(paste(allfec$Year,allfec$Week,'1',sep='-'), '%Y-%W-%w')
+	# Re-create dates as the monday of the relevant week, using the date of Monday of week 1 as a fixed reference:
+	if(any(allfec$Year != year)) stop(paste0('Inconsistent year detected for ', farm, ' ', year))
+	firstmon <- as.Date(paste0(year,'-1-1',sep='-'), '%Y-%W-%w')
+	allfec$Monday <- firstmon + (allfec$Week-1)*7
 	stopifnot(all(!is.na(allfec$Monday)))
 
 	# And calculate the time of last dosing:
@@ -173,6 +179,6 @@ dosing_sheet <- function(year, farm, excel_file, excel_sheet, all_locations){
 		stopifnot(all(allfec$LastDose == allfec$LastDoseTest))
 		allfec$LastDoseTest <- NULL
 	}
-	
+
 	return(list(allanimals=allanimals, allfec=allfec, rawdata=rawdata))
 }
