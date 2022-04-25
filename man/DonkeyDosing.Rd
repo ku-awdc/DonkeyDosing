@@ -6,8 +6,6 @@
 \alias{donkeydosing}
 \title{Data import, model running, and data/dosing sheet export for the Donkey Dosing software}
 \arguments{
-\item{year}{the year relevant to the locations or FEC data to be read (length 1 numeric)}
-
 \item{excel_file}{path to an excel from which to read data (either locations, FEC or weather data, depending on the method).  Should have a .xlsx or .xls file extension (length 1 character).}
 
 \item{excel_sheet}{the relevant sheet number/name within the excel file}
@@ -38,8 +36,13 @@ This class is written using an OOP-style of programming, so that the data can be
 
 \item{\code{Reset()}}{Reset the DonkeyDosing object (clear all data)}
 
-\item{\code{SaveDataArchive(archive_file, years = "all", overwrite = FALSE,
-  compress = "gzip", compression_level = 6)}}{Save the currently loaded location/animal/FEC/weather data into an archive file}
+\item{\code{SaveDataArchive(
+  archive_file,
+  years = "all",
+  overwrite = FALSE,
+  compress = "gzip",
+  compression_level = 6
+)}}{Save the currently loaded location/animal/FEC/weather data into an archive file}
 
 \item{\code{initialize(reset = FALSE)}}{Set up a DonkeyDosing object before importing files}
 }}

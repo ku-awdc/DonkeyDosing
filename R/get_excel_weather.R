@@ -1,5 +1,9 @@
 get_excel_weather <- function(weather, year){
 
+  weather$Year <- as.numeric(format(weather$Date, "%Y"))
+  weather$Month <- as.numeric(format(weather$Date, "%m"))
+  weather$Day <- as.numeric(format(weather$Date, "%d"))
+
 	# First get current year, add week day and week, then reverse order by date:
 	cyweather <- weather %>%
 		filter(.data$Year == year) %>%
@@ -52,10 +56,11 @@ get_excel_weather <- function(weather, year){
 	allweather <- allweather %>%
 		filter(Week >= -36) %>%
 		arrange(Date) %>%
-		select(Year, Week, WeekDay, Month, Day, Temp_high, Temp_avg, Temp_low, Rel_Humidity_avg, Abs_Humidity_avg) %>%
+		select(Date, Year, Week, WeekDay, Month, Day, Temp_high, Temp_avg, Temp_low, Rel_Humidity_avg, Abs_Humidity_avg) %>%
 		mutate_at(vars(.data$Temp_high:.data$Abs_Humidity_avg), round, digits=1)
 
-	#write.csv(allweather, file='weather_2018.csv', row.names=FALSE)
+	if(any(is.na(allweather))) warning("Something went wrong formatting the weather: there are missing vales!", call.=FALSE)
+
 	return(allweather)
 }
 

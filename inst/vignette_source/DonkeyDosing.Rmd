@@ -25,6 +25,8 @@ The DonkeyDosing package is an R package that supports the anthelmintic dosing p
 
 ---
 
+### Scraping data
+
 There are a number of free services for scraping recent weather data for arbitrary coordinates. Until recently, DarkSky was preferred, but this service will close down by the end of 2022. One alternative is OpenWeather, although this is more limited than DarkSky in that data can only be obtained for the previous 5 days: this means that data must be scraped daily (or almost daily) in order to maintain a complete source of information.
 
 A function is provided within the DonkeyDosing package to facilitate scraping.  The two input parameters are (1) the path to a folder where scraped data should be saved, and (2) an API key that has been set up via https://openweathermap.org/ (if this is omitted, then the key is assumed to be found in an "OpenWeatherKey.txt" file in the same folder as where the data is saved). The function can then be run as follows:
@@ -36,8 +38,101 @@ library("DonkeyDosing")
 scrape_openweather(ow_path)
 ```
 
+The daily weather observations are cached into a folder within the ow_path as follows:
 
-TODO
+```{r}
+list.files(file.path(ow_path, "2022"))
+```
+
+As stated above, this function must be run daily (or almost daily) in order to ensure that an uninterrupted supply of weather data is obtained.  On linux this is best achieved using a CRON job, on macOS this can be done using launchd, and on Windows a scheduled task can be set up.
+
+### Extracting data
+
+During the grazing season, the formatted weather data will need to be extracted weekly so that the Dosing Model can be run using up-to-date weather data.  To do this, first ensure that the scraping function has been run as above.  Then run the extract_weather function as follows:
+
+```{r}
+weather <- extract_weather(ow_path)
+```
+
+This function extracts the information and formats as needed.  By default, cached information is taken from a "cache.csv" file in the ow_path directory where available, so that it only needs to be loaded from the daily .rds files once.  This means that the daily .rds files can be removed once they have been processed into the cache (and therefore that only the cache file needs to be transferred if the process is moved to another machine).
+
+Note also that two mechanisms are provided for filling in missing data that may have occured due to a failure in scraping:
+
+1.  The argument impute_missing=TRUE can be set, which uses a Kalman filter to impute missing observations and re-saves the cache with these imputed data.  This should be fine for the occasional missing day.
+
+1.  The cache.csv file can be edited manually where necessary:  after running the function, days with missing observations appear in the correct place in the file but with missing data in the relevant columns.  This can simply be edited to correct the data manually using information from another source.
+
+If the function runs successfully (i.e. all necessary data was found either in the cache or in scraped daily files) then a data frame will be returned.  This can then be saved as a CSV file and imported directly into the relevant sheet of the dosing tool.
+
+```{r}
+write.csv(weather, file=paste0('~/Dropbox/Donkey Sanctuary/weather_', format(Sys.Date(), "%Y"), '.csv'), row.names=FALSE)
+```
+
+Up to 2022, I have sent this file to Nikki automatically via email every Monday morning.  I will continue to do this for the forseable future, but it would be good for the Donkey Sanctuary to at least set up a parallel system so that there is some redundancy there.  Otherwise, let me know if/when I should stop sending the file.
+
+### Adjustment for different weather services
+
+For 2021 and earlier, the weather source used was from DarkSky.  Although obviously highly correlated, there are some small differences between DarkSky and OpenWeather that may have some influence on the dosing tool.  To illustrate this, we can use the period of data for which we have overlap (approximately 1 year from April 2021 to April 2022):
+
+```{r}
+openwthr <- extract_weather(ow_path, include_date=TRUE) |>
+	mutate(Source = "OpenWeather") |>
+	select(-Year,-Week,-WeekDay,-Month,-Day) |>
+	pivot_longer(Temp_high:Abs_Humidity_avg, names_to = "Variable", values_to = "Value")
+	
+darksky <- read_csv(file.path(ow_path, "dark_sky_comparison.csv"), show_col_types = FALSE) |>
+	mutate(Source = "DarkSky") |>
+	select(-Year,-Week,-WeekDay,-Month,-Day) |>
+	pivot_longer(Temp_high:Abs_Humidity_avg, names_to = "Variable", values_to = "Value")
+
+comb <- bind_rows(openwthr, darksky) |>
+	pivot_wider(names_from = "Source", values_from = "Value") |> 
+  filter(!is.na(OpenWeather), !is.na(DarkSky))
+
+theme_set(theme_light())
+ggplot(comb, aes(x=OpenWeather, y=DarkSky)) +
+	geom_abline(slope=1, intercept=0) +
+	stat_smooth(method="lm", formula=y~x) +
+	geom_point() +
+	facet_wrap(~ Variable, scales="free")
+```
+
+The absolute humidity and mean temperature are practically identical. For relative humidity there does seem to be some discrepancy at very low values, with DarkSky over-estimating relative to OpenWeather, but there are only a small number of points (around 4) in this area.  Similarly, DarkSky appears to slightly over-estimate the lowest minimum temperatures and slightly under-estimate the highest maximum temperatures relative to OpenWeather.  However, these differences are most likely too small to have any substantial affect on the model, so the switch from DarkSky for 2013-2021 towards OpenWeather for 2022 onwards should be safe to do.
+
+
+---
+
+## Updating the dosing tool
+
+---
+
+The coefficients used within the dosing tool should be updated every spring, using the historical data plus new data that is available from the previous years' grazing history.  Functions are provided within the DonkeyDosing package to do this as follows.
+
+### Loading the historical archive and weather data
+
+First we must create an empty DonkeyDosing object and then populate it using an archive file saved the previous spring:
+
+```{r}
+library("DonkeyDosing")
+container <- DonkeyDosing()
+container$LoadDataArchive('~/Documents/Research/Projects/Donkey Sanctuary 2/2022/data_2013_2020.Rdata')
+```
+
+Then we can add new weather data for the previous year to the dosing model container.  Note that we must first write to a CSV file and then pass the path to the CSV file to the container method AddWeatherSheet:
+
+```{r}
+new_weather <- extract_weather(ow_path, year = "2021")
+write_csv(new_weather, "weather_2021.csv")
+container$AddWeatherSheet("weather_2021.csv")
+```
+
+### Loading new FEC data
+
+Loading FEC from the previous year's grazing season must be done via the final (completed) dosing tool from the previous year.
+
+
+TODO: add 
+
 
 Planned content:
 
