@@ -35,7 +35,8 @@ Imports:
 	pbapply,
 	RJSONIO
 Suggests: 
-    R.rsp
+    R.rsp,
+    writexl
 VignetteBuilder: R.rsp
 License: GPL-3 | file LICENSE
 URL: https://github.com/ku-awdc/DonkeyDosing

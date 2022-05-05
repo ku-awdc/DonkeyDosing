@@ -395,10 +395,10 @@ DonkeyDosing <- setRefClass('DonkeyDosing',
 
 			# Gives the best balance of interpretability and consistency with vs without 2018 data:
 			formula <- meanLogFEC ~ (1 | Year) + (1 | LocationYear) +
-			    Farm + Hygiene + log(TotalAnimals) + 
-				DoseProp4 + DoseProp8 + DoseProp12 + 
+			    Farm + Hygiene + log(TotalAnimals) +
+				DoseProp4 + DoseProp8 + DoseProp12 +
 				Temp_avg_16 + I(Temp_avg_16^2/10) + Temp_avg_20 + I(Temp_avg_20^2/10) +
-				AbsHumid_16 + I(AbsHumid_16^2/10) + AbsHumid_20 + I(AbsHumid_20^2/10) + 
+				AbsHumid_16 + I(AbsHumid_16^2/10) + AbsHumid_20 + I(AbsHumid_20^2/10) +
 			    Temp_frost_8 + I(Temp_frost_8^2/10) + Temp_frost_12 + I(Temp_frost_12^2/10) +
 			    Temp_frost_16 + I(Temp_frost_16^2/10) +
 				sdoy + cdoy
@@ -443,7 +443,7 @@ DonkeyDosing <- setRefClass('DonkeyDosing',
 		}
 
 
-		return(tosave)
+		invisible(tosave)
 
 	},
 

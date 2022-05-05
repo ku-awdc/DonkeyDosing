@@ -108,15 +108,182 @@ The absolute humidity and mean temperature are practically identical. For relati
 
 The coefficients used within the dosing tool should be updated every spring, using the historical data plus new data that is available from the previous years' grazing history.  Functions are provided within the DonkeyDosing package to do this as follows.
 
-### Loading the historical archive and weather data
+### Checking and cleaning the new FEC data
 
-First we must create an empty DonkeyDosing object and then populate it using an archive file saved the previous spring:
+Loading FEC from the previous year's grazing season must be done via the final (completed) Excel file containing the dosing tool from the previous year.  This data is collected in Excel over the grazing season and will not be checked for strict validation of inputs during the grazing season, so some level of data cleaning is usually necessary before the data can be read into R.  This obviously will vary from year to year, but the DonkeyDosing tool gives specific feedback about what errors need to be corrected.  Unfortunately, checking can only be done up to the first error detected, so the process must be run repeatedly with iterative correction of errors until the function completes successfully.  An example of this process is given here for the 2021 grazing season data.
+
+First we must create an empty DonkeyDosing object and then set up a path to the folder containing the relevant Excel file:
 
 ```{r}
 library("DonkeyDosing")
 container <- DonkeyDosing()
+dir <- "~/Documents/Research/Projects/Donkey Sanctuary 2/2022/"
+```
+
+Then we must add the locations that were used in 2021, by telling the DonkeyDosing tool to read the "Locations" sheet of the Excel file:
+
+```{r}
+container$AddLocations(2021, file.path(dir, "2021 Dosing Tool.xlsx"), "Locations")
+```
+
+This typically runs without errors and did so for 2021.  We can then explicitly list the farms that are available in the data for reference:
+
+```{r}
+farms <- readxl::excel_sheets(file.path(dir, "2021 Dosing Tool.xlsx"))
+farms <- farms[! farms %in% c("Overview","Locations", "WeatherData", "Advice", "Action List", "Data", "ModelData", "Data Selection", "MakeList", "Weather", "Coefficients", "EffectEstimates")]
+farms
+```
+
+We must then add the data from the farms one at a time, as follows:
+
+```{r}
+container$AddDosingSheet(2021, "Axnoller", file.path(dir, "2021 Dosing Tool.xlsx"))
+```
+
+There is an error that must be corrected for Axnoller:  there are two columns with name "T20" (indicating which animals have been given anthelmintic treatment in week 20).  This must be corrected in the Excel file directly either by renaming one of the columns (if the column name is incorrect), or by merging the treatment information from both of the columns into a single column (using e.g. an Excel formula and then copying/pasting by value).  I suggest you first make a copy of the dosing tool and make modifications in the copy - here I append "cleaned" to the filename and then modified the T20 colum as outlined above.  Then we can try to re-read the file:
+
+```{r}
+container$AddDosingSheet(2021, "Axnoller", file.path(dir, "2021 Dosing Tool cleaned.xlsx"))
+```
+
+This time the function got further into the file before an error.  You can ignore the "New names:" and text below it: that just indicates that blank column names were given a temporary name, but these are ignored anyway.  However, some duplicated animal identifiers were found:  the dosing tool requires each animal to have exactly one row, so this needs to be fixed.  In this case the second entry for Winnie Belbin is blank, so can be deleted.  The second entry for Xavier Eire looks like a partial copy of the first, so can also be deleted. Then we can recheck the file:
+
+```{r}
+container$AddDosingSheet(2021, "Axnoller", file.path(dir, "2021 Dosing Tool cleaned 2.xlsx"))
+```
+
+[Note: in practice you would simply modify the "2021 Dosing Tool cleaned.xlsx" file, but for the sake of this vignette I will continue to copy the files first.]
+
+This time the import worked.  Some messages are printed that we should look at:  firstly an invalid location was found and will be ignored.  In this case that is OK (as Pending is not a real location), but you should correct any typos in valid location names in the excel file.  You should also ensure that all of the text entries representing anthelmintic treatment really are anthelmintics - if any of these are notes then they should be deleted in the Excel file (or moved to a e.g. NXX column representing notes for the specific week).
+
+Now that Axnoller is finalised, we can move on to Brookfield:
+
+```{r}
+container$AddDosingSheet(2021, "Brookfield", file.path(dir, "2021 Dosing Tool cleaned 2.xlsx"))
+```
+
+The only issue here is that "New Barn Bottom (Super Grannies)" is not recognised from the list of locations (on the Location sheet), because there it is spelt differently:  "New Barn Bottom (Super grannies)" (i.e. no capital g).  We therefore need to do a find and replace in the Brookfield sheet to correct this, and then re-run. However, our previous attempt did result in the Brookfield sheet being loaded, so we first need to reset the container to continue checking:
+
+```{r}
+container <- DonkeyDosing()
+container$AddLocations(2021, file.path(dir, "2021 Dosing Tool.xlsx"), "Locations")
+
+container$AddDosingSheet(2021, "Brookfield", file.path(dir, "2021 Dosing Tool cleaned 3.xlsx"))
+```
+
+Now we can move on to Hurfords.
+
+```{r}
+container$AddDosingSheet(2021, "Hurfords", file.path(dir, "2021 Dosing Tool cleaned 3.xlsx"))
+```
+
+Nothing requires correcting here, so we can move straight on to Paccombe:
+
+```{r}
+container$AddDosingSheet(2021, "Paccombe", file.path(dir, "2021 Dosing Tool cleaned 3.xlsx"))
+```
+
+This is a similar error to before, but this time a single entry is in the second F11 column representing anthelmintic treatment - so the column name should be T11.  After fixing, we can re/run:
+
+```{r}
+container$AddDosingSheet(2021, "Paccombe", file.path(dir, "2021 Dosing Tool cleaned 4.xlsx"))
+```
+
+This time we can see some strange anthelmintic recordings:  these are mostly due to column K (T3), which has some real anthelmintic treatments (e.g. MOX) but also some dates (which presumably indicate MOX treatment on a slightly different date), and some entries that are not anthelmintic treatment (No Tx and ~).  The easiest thing to do is to copy this column, rename the original N3 and then tidy up the T3 column so that dates are switched to e.g. "Yes" (the text used doesn't actually matter) and non-treatment text is removed. Before re-running, we need to reset the container again:
+
+```{r}
+container <- DonkeyDosing()
+container$AddLocations(2021, file.path(dir, "2021 Dosing Tool.xlsx"), "Locations")
+
+container$AddDosingSheet(2021, "Paccombe", file.path(dir, "2021 Dosing Tool cleaned 5.xlsx"))
+```
+
+Now we can move on to Slade:
+
+```{r}
+container$AddDosingSheet(2021, "Slade House Farm", file.path(dir, "2021 Dosing Tool cleaned 5.xlsx"))
+```
+
+The spelling variation for "Poitou back barn" should be corrected, and the container reset before rerunning:
+
+```{r}
+container <- DonkeyDosing()
+container$AddLocations(2021, file.path(dir, "2021 Dosing Tool.xlsx"), "Locations")
+
+container$AddDosingSheet(2021, "Slade House Farm", file.path(dir, "2021 Dosing Tool cleaned 6.xlsx"))
+```
+
+Then we can move on to Town Barton:
+
+```{r}
+container$AddDosingSheet(2021, "Town Barton", file.path(dir, "2021 Dosing Tool cleaned 6.xlsx"))
+```
+
+And then Trow:
+
+```{r}
+container$AddDosingSheet(2021, "Trow", file.path(dir, "2021 Dosing Tool cleaned 6.xlsx"))
+```
+
+This time we get an error that there is no check date:  in order to verify week numbers at least entry must be made in the second row containing the date corresponding to the Monday of the week number in the first row. So here, we can enter 19/04/2021 as the date for week 16 in cell K2 and re-run:
+
+```{r}
+container$AddDosingSheet(2021, "Trow", file.path(dir, "2021 Dosing Tool cleaned 7.xlsx"))
+```
+
+The single location "Hurfords Far Hills" presumably represents an animal that was moved, so it should be ignored for Trow - so no action is needed.  So we can move on to Woods:
+
+```{r}
+container$AddDosingSheet(2021, "Woods", file.path(dir, "2021 Dosing Tool cleaned 7.xlsx"))
+```
+
+This is the same error as before:  the second F13 column contains anthelmintic treatments, so should be T13.  That is easily fixed:
+
+```{r}
+container$AddDosingSheet(2021, "Woods", file.path(dir, "2021 Dosing Tool cleaned 8.xlsx"))
+```
+
+A single asterix was used in cell Y132, which presumably does not represent anthelmintic treatment so can be removed. However, if you are unsure then you could always check with Nikki.
+
+This time I will rename the file to "2021 Dosing Tool final.xlsx" and re-check:
+
+```{r}
+container <- DonkeyDosing()
+container$AddLocations(2021, file.path(dir, "2021 Dosing Tool.xlsx"), "Locations")
+
+container$AddDosingSheet(2021, "Woods", file.path(dir, "2021 Dosing Tool final.xlsx"))
+```
+
+This completes without errors, which completes the checking phase.  If you encounter anything unexpected in future years then please feel free to email me!
+
+### Loading the historical archive and weather data
+
+Before we can update the model, we must populate the container using an archive file saved the previous spring.  It is best to start from a fresh container:
+
+```{r}
+container <- DonkeyDosing()
 container$LoadDataArchive('~/Documents/Research/Projects/Donkey Sanctuary 2/2022/data_2013_2020.Rdata')
 ```
+
+We can run the model excluding this year's data, and extract the coefficients from this archive for comparison with the new estimates including this year's data:
+
+```{r}
+container$FitPredictionModel()
+old_coefs <- container$GetCoefficients()
+```
+
+It is normal to get some warnings about "Model failed to converge with max|grad| = ..some small number.." - as long as these numbers are close to the reported tol then it is OK.
+
+Then we can load our newly cleaned file from the previous year:
+
+```{r}
+container$AddLocations(2021, file.path(dir, "2021 Dosing Tool.xlsx"), "Locations")
+for(f in farms){
+  container$AddDosingSheet(2021, f, file.path(dir, "2021 Dosing Tool final.xlsx"))
+}
+```
+
+This should complete successfully, but you should double check the output just in case!
 
 Then we can add new weather data for the previous year to the dosing model container.  Note that we must first write to a CSV file and then pass the path to the CSV file to the container method AddWeatherSheet:
 
@@ -126,10 +293,101 @@ write_csv(new_weather, "weather_2021.csv")
 container$AddWeatherSheet("weather_2021.csv")
 ```
 
-### Loading new FEC data
+### Updating the coefficients
 
-Loading FEC from the previous year's grazing season must be done via the final (completed) dosing tool from the previous year.
+Now that we have the complete data entered, we can update the coefficients using the following code:
 
+```{r}
+container$FitPredictionModel()
+coefs <- container$GetCoefficients()
+```
+
+TODO: warnings
+TODO: remove anything > 10 years old
+
+TODO: It is a good idea to check that these new coefficients are  
+
+```{r}
+cbind(old_coefs, coefs) |> View()
+```
+
+comp_coefs <- cbind(read_csv("/Users/matthewdenwood/Documents/Research/Projects/Donkey Sanctuary 2/2020/effect_etimates_2019.csv",col_names=FALSE), coefs)[c(3,2,4)]
+
+
+```{r}
+
+
+
+allmodeldata <- container$GetGroupModelData()
+saves <- 
+coefs <- container$GetCoefficients()
+
+container$SaveDataArchive('data_2013_2020_darksky.Rdata')
+
+# Checking predictions needs an excel file:
+preds <- container$GetPredictions(2020, 'Brookfield', fp)
+#preds
+
+## Extract updated weather:
+# allweather <- DonkeyDosing:::get_excel_weather(daily, 2020)
+
+# Compare coefficients:
+comp_coefs <- cbind(read_csv("/Users/matthewdenwood/Documents/Research/Projects/Donkey Sanctuary 2/2020/effect_etimates_2019.csv",col_names=FALSE), coefs)[c(3,2,4)]
+
+```
+
+
+
+```{r}
+fp <- "~/Documents/Research/Projects/Donkey Sanctuary 2/2022/2021 Dosing Tool final.xlsx"
+farms <- unique(container$Locations$Farm)
+output <- farms %>% as.list() %>% `names<-`(.,.)
+for(farm in farms){
+  data <- DonkeyDosing:::dosing_sheet(2021, farm, fp, farm, container$Locations)$rawdata
+  str(data)
+
+  # Add a row number and then calculate mean FEC:
+  data$row <- 1:nrow(data)
+
+  meanfecs <- data %>%
+    filter(Location != 'DEAD') %>%
+    select(row, starts_with('F')) %>%
+    gather(week, fec, -row) %>%
+    group_by(row) %>%
+    summarise(meanfec = mean(as.numeric(fec), na.rm=TRUE)) %>%
+    mutate(meanfec = ifelse(is.nan(meanfec), NA, round(meanfec)))
+  # meanfecs %>% summary
+
+
+  # Need to increment ages by 1 year:
+  dataout <- data %>%
+    right_join(meanfecs, by='row') %>%
+    mutate(Age = as.numeric(Age)+1) %>%
+    # And fill in any missing clinical risk as Normal:
+    mutate(ClinicalRisk = ifelse(is.na(ClinicalRisk) | ClinicalRisk=='', 'Normal', ClinicalRisk)) %>%
+    # Rename notes as notes2020:
+    mutate(NewNotes = '') %>%
+    select(Name:ClinicalRisk, AvFEC = meanfec, Notes=NewNotes, Notes2020 = Notes)
+
+  # Then add the blank row 1:
+  blank <- dataout[1,]
+  blank[] <- NA
+  blank$AvFEC <- 2020
+
+  output[[farm]] <- rbind(blank,dataout) %>% as_tibble()
+  #write_csv(rbind(blank,dataout), path=paste0(farm,'_2021.csv'), na='')
+  
+  cat("Done ", farm, "\n", sep="")
+}
+
+library("writexl")
+new_weather <- extract_weather(ow_path, year = "2022")
+write_xlsx(c(output, list(WeatherData=new_weather, EffectEstimates=coefs)), "all_farms_2022.xlsx")
+
+```
+
+
+Then manually copy sheets from all_farms_2022.xlxs into a copy of the dosing tool - replace each sheet name
 
 TODO: add 
 

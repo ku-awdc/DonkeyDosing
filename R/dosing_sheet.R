@@ -66,7 +66,7 @@ dosing_sheet <- function(year, farm, excel_file, excel_sheet, all_locations){
 	# Remove the first row (dates) and any white space at the bottom:
 	data <- data %>%
 		slice(-1) %>%
-		filter(!is.na(Name) || !is.na(Tag))
+		filter(!is.na(Name) | !is.na(Tag))
 
 	# The columns that cannot be blank:
 	if(any(is.na(data$Name)))
