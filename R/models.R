@@ -2,6 +2,7 @@
 #' @importFrom lmerTest lmer
 #' @importFrom MASS glm.nb
 #' @importFrom broom tidy
+#' @importFrom testthat capture_warnings
 #' @importFrom scales date_format
 #' @importFrom stats predict coef lm relevel resid sd update model.frame pnorm
 #' @importFrom utils capture.output write.table write.csv tail
@@ -48,11 +49,13 @@ get_prediction_models <- function(gpdata, allfec, rollingweather, group_model, e
 	## (and Mox treatment in Dec/Jan may not be universally recorded in earlier years)
 
 	gpmoddat <- gpdata %>% filter(.data$TotalFEC >= min_N)
-	cat('Fitting the group model to ', nrow(gpmoddat), ' average FEC observations from a minimum of ', min_N, ' animals...\n', sep='')
+	yrs <- gpdata %>% count(as.numeric(as.character(.data$Year)))
+	cat('Fitting the group model to ', nrow(gpmoddat), ' average FEC observations from a minimum of ', min_N, ' animals for ', length(yrs), ' years of data between ', min(yrs), ' and ', max(yrs), '...\n', sep='')
 	# I get a false positive note:  group_predictions: no visible binding for global variable ‘NewTotalFEC’
 	gpmoddat$NewTotalFEC <- gpmoddat$TotalFEC
 	NewTotalFEC <- 'this is just to mute the R CMD check NOTE'
 	# No idea why - it is a false positive
+
 	gpmodel <- lmer(group_model, data=gpmoddat, weights=NewTotalFEC)
 
 	#### Need to drop each farm/year in sequence and make predictions for that farm/year from the others

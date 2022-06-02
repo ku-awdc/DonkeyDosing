@@ -33,6 +33,7 @@ Imports:
 	lme4,
 	imputeTS,
 	pbapply,
+	testthat,
 	RJSONIO
 Suggests: 
     R.rsp,

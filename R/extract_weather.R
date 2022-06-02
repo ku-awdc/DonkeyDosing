@@ -108,7 +108,7 @@ extract_weather <- function(path, year = format(Sys.Date(), "%Y"), use_cache = T
   # We need to go back to week -36 so check there are 1st Jan - 37*7 days
   mindate <- as.Date(paste0(year, "-01-01")) - (7L*37L)
   if(min(alldata$Date) > mindate) stop("Unable to extract data:  dates do not go back far enough!", call.=FALSE)
-  if(max(alldata$Date) < (Sys.Date() - 1L)) stop("Unable to extract data as the scraping has not yet been run today", call.=FALSE)
+  if(max(alldata$Date) < (Sys.Date() - 7L)) stop("Unable to extract data as the scraping has not been run within the last week", call.=FALSE)
 
   ## Format correctly and return:
   rv <- get_excel_weather(alldata, as.numeric(year))

@@ -160,22 +160,31 @@ DonkeyDosing <- setRefClass('DonkeyDosing',
 	AddWeatherSheet = function(weather_file, years='all', replace=TRUE, ...){
 		"Add weather data for one or more years from either an Excel or CSV file"
 
-		if(!is.character(weather_file) || length(weather_file)!=1 || !( grepl('\\.xlsx$', weather_file) || grepl('\\.xls$', weather_file) || grepl('\\.csv$', weather_file) ))
-			stop('The specified weather_file argument must be a length 1 character string specifying a file with a .csv, .xlsx or .xls file extension')
+	  if(is.data.frame(weather_file)){
 
-		if(is.character(years)){
-			if( length(years)!=1 || tolower(years)!='all' )
-				stop('The years argument must either be the word "all" or a numeric vector specifying the years to import')
-		}else{
-			if(!is.numeric(years) || any(years < 2000) || any(years > 2050))
-				stop('The years argument must either be the word "all" or a numeric vector specifying one or more year in the range 2000-2050')
-		}
+	    weather <- weather_file
 
-		if(grepl('\\.csv$', weather_file)){
-			weather <- read.csv(weather_file, header=TRUE, stringsAsFactors=FALSE, ...)
-		}else{
-			weather <- read_excel(weather_file, col_types='text', col_names=TRUE, .name_repair='unique', ...)
-		}
+	  }else{
+
+	    if(!is.character(weather_file) || length(weather_file)!=1 || !( grepl('\\.xlsx$', weather_file) || grepl('\\.xls$', weather_file) || grepl('\\.csv$', weather_file) ))
+	      stop('The specified weather_file argument must be a length 1 character string specifying a file with a .csv, .xlsx or .xls file extension')
+
+	    if(is.character(years)){
+	      if( length(years)!=1 || !tolower(years)%in%c('all') )
+	        stop('The years argument must either be the word "all" or a numeric vector specifying the years to import')
+	    }else{
+	      if(!is.numeric(years) || any(years < 2000) || any(years > 2050))
+	        stop('The years argument must either be the words "all" or a numeric vector specifying one or more year in the range 2000-2050')
+	    }
+
+	    if(grepl('\\.csv$', weather_file)){
+	      weather <- read.csv(weather_file, header=TRUE, stringsAsFactors=FALSE, ...)
+	    }else{
+	      weather <- read_excel(weather_file, col_types='text', col_names=TRUE, .name_repair='unique', ...)
+	    }
+
+	  }
+
 
 		if(! all(c('Year','Week','Month','Day','Temp_low','Temp_avg','Temp_high','Rel_Humidity_avg','Abs_Humidity_avg') %in% names(weather)) )
 			stop('One or more required column Year, Week, Month, Day, Temp_low, Temp_avg, Temp_high, Rel_Humidity_avg & Abs_Humidity_avg was missing')
@@ -220,6 +229,7 @@ DonkeyDosing <- setRefClass('DonkeyDosing',
 				stop(paste0('Specified year not present in the data: ', years[which(! years %in% weather$Year)][1]))
 			}
 		}
+
 		years <- unique(weather$Year)
 		dmiss <- sapply(years, function(y){
 			de <- seq(min((weather %>% filter(.data$Year == y))$Date), max((weather %>% filter(.data$Year == y))$Date), by="days")
@@ -387,9 +397,8 @@ DonkeyDosing <- setRefClass('DonkeyDosing',
 
 	},
 
-	FitPredictionModel = function(formula = NA, years='all', comparison=FALSE){
-		""
-		# TODO: add description
+	FitPredictionModel = function(formula = NA, years='last10', comparison=FALSE){
+		"Fit the prediction model"
 
 		if(identical(formula, NA)){
 
@@ -408,6 +417,21 @@ DonkeyDosing <- setRefClass('DonkeyDosing',
 				# NB: random effect of farmhygiene would also be problematic if a farm without e.g. manual had it next year
 		}
 
+	  # By default include only last 10 years of data:
+	  if(length(years)==1 && years=="last10"){
+	    browser()
+	    # Look into data and get last 10 years then specify years=seq(...)
+	    if(last10){
+	      gpdata <- gpdata %>% filter(as.numeric(as.character(.data$Year)) >= (as.numeric(format(Sys.Date(), "%Y"))-10))
+	    }
+
+
+	    last10 <- TRUE
+	    years <- 'all'
+	  }else{
+	    last10 <- FALSE
+	  }
+
 		# Need to run the function to reset the data if needed:
 		gpdata <- .self$GetGroupModelData(years=years)
 		min_N <- .self$prepared$min_N
@@ -417,8 +441,10 @@ DonkeyDosing <- setRefClass('DonkeyDosing',
 		indat <- .self$IndividualModelData %>% filter(.data$Year %in% unique(gpdata$Year))
 
 		# All years:
+		ww <- capture_warnings({
 		predmods <- get_prediction_models(gpdata, indat, .self$RollingWeather, formula, expected_efficacy=expected_efficacy, min_N=min_N, min_week=min_week, max_week=max_week, maxiters=1000, tol=10^-3, txtime=0, txrm=FALSE, lastyear=TRUE, individual_intercept=FALSE, resid_doy_interaction=FALSE, common_re=TRUE)
 			# See inside the function for meanings of these additional arguments
+		})
 
 		# TODO: save only the things that need to be saved:
 		tosave <- list()
@@ -435,13 +461,23 @@ DonkeyDosing <- setRefClass('DonkeyDosing',
 			if(length(useyear)<2){
 				stop('The model comparison option requires 3 years of data')
 			}
-			predmods_comp <- get_prediction_models(gpdata %>% filter(.data$Year %in% useyear), .self$IndividualModelData %>% filter(.data$Year %in% useyear), .self$RollingWeather, formula, expected_efficacy=expected_efficacy, min_N=min_N, min_week=min_week, max_week=max_week, maxiters=1000, tol=10^-3, txtime=0, txrm=FALSE, lastyear=TRUE, individual_intercept=FALSE, resid_doy_interaction=FALSE, common_re=TRUE)
+			ww <- c(ww, capture_warnings({
+			 predmods_comp <- get_prediction_models(gpdata %>% filter(.data$Year %in% useyear), .self$IndividualModelData %>% filter(.data$Year %in% useyear), .self$RollingWeather, formula, expected_efficacy=expected_efficacy, min_N=min_N, min_week=min_week, max_week=max_week, maxiters=1000, tol=10^-3, txtime=0, txrm=FALSE, lastyear=TRUE, individual_intercept=FALSE, resid_doy_interaction=FALSE, common_re=TRUE)
+		  }))
 
 			# TODO: only add things to the tosave that need to be saved
 			tosave$nolastyear <- predmods_comp
 			.self$predictions <- tosave
 		}
 
+		if(length(ww)>0){
+		  if(length(ww)==1){
+		    msg <- str_c("The following warning was obtained when fitting the models:\n", ww)
+		  }else{
+		    msg <- str_c("The following warnings were obtained when fitting the models:\n", str_c(ww, collapse="\n"))
+		  }
+		  warning(msg)
+		}
 
 		invisible(tosave)
 

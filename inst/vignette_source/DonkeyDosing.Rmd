@@ -52,6 +52,7 @@ During the grazing season, the formatted weather data will need to be extracted 
 
 ```{r}
 weather <- extract_weather(ow_path)
+tail(weather)
 ```
 
 This function extracts the information and formats as needed.  By default, cached information is taken from a "cache.csv" file in the ow_path directory where available, so that it only needs to be loaded from the daily .rds files once.  This means that the daily .rds files can be removed once they have been processed into the cache (and therefore that only the cache file needs to be transferred if the process is moved to another machine).
@@ -115,7 +116,6 @@ Loading FEC from the previous year's grazing season must be done via the final (
 First we must create an empty DonkeyDosing object and then set up a path to the folder containing the relevant Excel file:
 
 ```{r}
-library("DonkeyDosing")
 container <- DonkeyDosing()
 dir <- "~/Documents/Research/Projects/Donkey Sanctuary 2/2022/"
 ```
@@ -265,14 +265,14 @@ container <- DonkeyDosing()
 container$LoadDataArchive('~/Documents/Research/Projects/Donkey Sanctuary 2/2022/data_2013_2020.Rdata')
 ```
 
-We can run the model excluding this year's data, and extract the coefficients from this archive for comparison with the new estimates including this year's data:
+We can run the model excluding this year's data, and extract the coefficients from this archive for comparison with the new estimates including this year's data. The following code runs several differnt models iteratively, so it takes a while (around 1 minute) to run:
 
 ```{r}
 container$FitPredictionModel()
 old_coefs <- container$GetCoefficients()
 ```
 
-It is normal to get some warnings about "Model failed to converge with max|grad| = ..some small number.." - as long as these numbers are close to the reported tol then it is OK.
+It is normal to get some warnings about "Model failed to converge with max|grad| = ..some small number.." - as long as these numbers are close to the reported tol (i.e. less than ~0.01) then it is OK.
 
 Then we can load our newly cleaned file from the previous year:
 
@@ -285,12 +285,11 @@ for(f in farms){
 
 This should complete successfully, but you should double check the output just in case!
 
-Then we can add new weather data for the previous year to the dosing model container.  Note that we must first write to a CSV file and then pass the path to the CSV file to the container method AddWeatherSheet:
+Then we can add new weather data for the previous year to the dosing model container using the container method AddWeatherSheet:
 
 ```{r}
 new_weather <- extract_weather(ow_path, year = "2021")
-write_csv(new_weather, "weather_2021.csv")
-container$AddWeatherSheet("weather_2021.csv")
+container$AddWeatherSheet(new_weather)
 ```
 
 ### Updating the coefficients
@@ -301,6 +300,8 @@ Now that we have the complete data entered, we can update the coefficients using
 container$FitPredictionModel()
 coefs <- container$GetCoefficients()
 ```
+
+As before, 
 
 TODO: warnings
 TODO: remove anything > 10 years old
