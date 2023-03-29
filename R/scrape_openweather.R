@@ -35,7 +35,7 @@ scrape_openweather <- function(path, api_key = NULL, lat = 50.725, lon = -3.175)
     date <- cdt - delta
 
     yr <- format(date, "%Y")
-    if(!dir.exists(file.path(path, yr))) mkdir(file.path(path, yr))
+    if(!dir.exists(file.path(path, yr))) dir.create(file.path(path, yr))
 
     fl <- file.path(path, yr, format(date, "%Y-%m-%d.rds"))
     if(file.exists(fl)) next()
