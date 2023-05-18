@@ -20,14 +20,17 @@
 #' @param excel_file path to an excel from which to read data (either locations, FEC or weather data, depending on the method).  Should have a .xlsx or .xls file extension (length 1 character).
 #' @param excel_sheet the relevant sheet number/name within the excel file
 #' @param year the farm relevant to the FEC data to be read (length 1 character)
+#' @param cl the number of cores on which to run parallel computation (or a cluster created by makeCluster or similar)
 
 #' @importFrom methods new
-#' @importFrom parallel mclapply
-#' @importFrom readxl read_excel
+#' @importFrom pbapply pblapply
+#' @importFrom readxl read_excel excel_sheets
 #' @importFrom rlang .data
+#' @importFrom tidyr gather
 #' @importFrom tibble as_tibble
+#' @importFrom stringr str_c str_replace_all
+#' @importFrom grDevices dev.off pdf
 #' @import tidyverse
-#' @import hellno
 
 
 #' @export DonkeyDosing
@@ -60,7 +63,7 @@ DonkeyDosing <- setRefClass('DonkeyDosing',
 
 	},
 
-	AddLocations = function(year, excel_file, excel_sheet=1){
+	AddLocations = function(year, excel_file){
 		"Add farm location information for a given year"
 
 		if(!is.numeric(year) || length(year)!=1 || year < 2000 || year > 3000)
@@ -69,7 +72,9 @@ DonkeyDosing <- setRefClass('DonkeyDosing',
 		if(!is.character(excel_file) || length(excel_file)!=1 || !(grepl('\\.xlsx$', excel_file) || grepl('\\.xls$', excel_file) ))
 			stop('The specified excel_file argument must be a length 1 character string specifying a file with a .xlsx or .xls file extension')
 
-		locations <- read_excel(excel_file, excel_sheet, .name_repair='unique')
+	  excel_sheet <- "Locations"
+	  if(!excel_sheet %in% excel_sheets(excel_file)) stop('The required sheet "Locations" is missing from the specified excel file')
+		locations <- read_excel(excel_file, excel_sheet, .name_repair = "unique")
 		if(! all(c('Farm','Location','Hygiene','Sensitivity') %in% names(locations)))
 			stop('One or more of the required columns Farm, Location, Hygiene and Sensitivity was missing from the specified excel file/sheet')
 
@@ -180,7 +185,7 @@ DonkeyDosing <- setRefClass('DonkeyDosing',
 	    if(grepl('\\.csv$', weather_file)){
 	      weather <- read.csv(weather_file, header=TRUE, stringsAsFactors=FALSE, ...)
 	    }else{
-	      weather <- read_excel(weather_file, col_types='text', col_names=TRUE, .name_repair='unique', ...)
+	      weather <- read_excel(weather_file, col_types='text', col_names=TRUE, .name_repair= "unique", ...)
 	    }
 
 	  }
@@ -419,17 +424,10 @@ DonkeyDosing <- setRefClass('DonkeyDosing',
 
 	  # By default include only last 10 years of data:
 	  if(length(years)==1 && years=="last10"){
-	    browser()
-	    # Look into data and get last 10 years then specify years=seq(...)
-	    if(last10){
-	      gpdata <- gpdata %>% filter(as.numeric(as.character(.data$Year)) >= (as.numeric(format(Sys.Date(), "%Y"))-10))
-	    }
-
-
-	    last10 <- TRUE
-	    years <- 'all'
-	  }else{
-	    last10 <- FALSE
+	    current_year <- as.numeric(format(Sys.Date(), "%Y"))
+	    years <- seq(current_year-11, current_year-1, by=1)
+	    years_available <- .self$FEC %>% distinct(.data$Year) %>% pull(.data$Year) %>% as.numeric()
+	    years <- years[years %in% years_available]
 	  }
 
 		# Need to run the function to reset the data if needed:
@@ -446,7 +444,6 @@ DonkeyDosing <- setRefClass('DonkeyDosing',
 			# See inside the function for meanings of these additional arguments
 		})
 
-		# TODO: save only the things that need to be saved:
 		tosave <- list()
 		tosave <- list(allyears=predmods, nolastyear=list(), comparison=comparison, expected_efficacy=expected_efficacy, min_week=min_week, max_week=max_week)
 		.self$predictions <- tosave
@@ -465,7 +462,6 @@ DonkeyDosing <- setRefClass('DonkeyDosing',
 			 predmods_comp <- get_prediction_models(gpdata %>% filter(.data$Year %in% useyear), .self$IndividualModelData %>% filter(.data$Year %in% useyear), .self$RollingWeather, formula, expected_efficacy=expected_efficacy, min_N=min_N, min_week=min_week, max_week=max_week, maxiters=1000, tol=10^-3, txtime=0, txrm=FALSE, lastyear=TRUE, individual_intercept=FALSE, resid_doy_interaction=FALSE, common_re=TRUE)
 		  }))
 
-			# TODO: only add things to the tosave that need to be saved
 			tosave$nolastyear <- predmods_comp
 			.self$predictions <- tosave
 		}
@@ -483,17 +479,98 @@ DonkeyDosing <- setRefClass('DonkeyDosing',
 
 	},
 
-	# TODO: remove this (for testing only)
 	LoadPredictionModel = function(saved){
+	  "This function is only needed for testing purposes"
 
 		.self$predictions <- saved
 		.self$run <- TRUE
 
 	},
 
+	GetPlots = function(farm, year="latest", file="", ...){
+	  "Extract plots showing model fit/predictions for each farm and year requested"
+
+	  if(!.self$run){
+	    stop('No coefficients available for writing: run FitPredictionModel() first')
+	  }
+
+	  pd <- .self$predictions$allyears$group_data_output
+	  comb <- pd$pred %>%
+	    select(.data$Year, .data$Farm, .data$Week, .data$Hygiene, Predicted = .data$PredExclusion) %>%
+	    filter(!is.na(.data$Predicted)) %>%
+	    right_join(
+	      pd$obs %>% distinct(.data$Year, .data$Farm, .data$Hygiene, .data$Location),
+	      by=c("Year","Farm","Hygiene"),
+	      relationship = "many-to-many"
+	    ) %>%
+	    full_join(
+	      pd$obs %>%
+	        mutate(Observed = exp(.data$meanLogFEC)-1L) %>%
+	        select(.data$Year, .data$Farm, .data$Week, .data$Hygiene, .data$Location, .data$Observed, .data$TotalFEC),
+	      by = c("Year","Farm","Week","Hygiene","Location")
+	    )
+
+	  ## Calculate average mean sizes:
+	  sizes <- comb %>%
+	    filter(!is.na(Observed)) %>%
+	    group_by(Year, Farm, Location) %>%
+	    summarise(MeanTotalFEC = round(mean(TotalFEC),1), .groups="drop")
+
+	  comb <- comb %>%
+	    left_join(sizes, by=c("Year","Farm","Location"))
+
+	  if("all" %in% farm) farm <- unique(comb$Farm)
+	  farm <- unique(farm)
+	  if(any(!farm %in% unique(comb$Farm))) stop("Unrecognised farm:  specify farms by name, or use 'all'")
+
+	  if("all" %in% year) year <- unique(comb$Year)
+	  year[year=="latest"] <- as.character(max(as.numeric(as.character(comb$Year))))
+	  year <- unique(year)
+	  if(any(!year %in% unique(comb$Year))) stop("Invalid year:  specify years manually, or use 'all' or 'latest'")
+
+	  plotfun <- function(f, y){
+	    pd <- comb %>%
+	      filter(Farm==f, Year==y)
+
+	    pd$Location <- paste0(gsub(paste0(f, "_"), "", pd$Location), " (", pd$MeanTotalFEC, ")")
+
+	    pt <- ggplot(pd, aes(x=.data[["Week"]])) +
+	      geom_line(aes(y=.data[["Predicted"]])) +
+	      geom_point(aes(y=.data[["Observed"]]), pd %>% filter(!is.na(.data$Observed))) +
+	      facet_wrap(~Location) +
+	      theme_light() +
+	      ylab("FEC") +
+	      ggtitle(paste0(f, " - ", y))
+
+	    pt
+	  }
+
+	  if(file==""){
+	    if(length(farm)>1 || length(year)>1) stop("Specify a filename to generate plots for multiple farms and/or years")
+
+	    return(plotfun(farm, year))
+	  }
+
+	  if(!grepl("\\.pdf$", file)) stop("Invalid file - must end with .pdf")
+	  pdf(file, ...)
+	  expand_grid(Farm=farm, Year=year) %>%
+	    group_split(Farm, Year) %>%
+	    pblapply(function(x){
+	      print(plotfun(x$Farm, x$Year))
+	    })
+    dev.off()
+
+    invisible(
+      comb %>%
+        filter(.data$Farm %in% farm, .data$Year %in% year) %>%
+        mutate(Location = str_replace(.data$Location, paste0(.data$Farm, "_"), "")) %>%
+        select("Year", "Farm", "Location", "Hygiene", "Week", "Predicted", "Observed", N="TotalFEC") %>%
+        arrange(.data$Year, .data$Farm, .data$Location, .data$Week)
+    )
+	},
+
 	GetCoefficients = function(write=TRUE, coefs_file='effect_etimates.csv', sexcodes_file='sex_codes.csv', PMcoefs=system.file('extdata/PMcoefs.Rdata', package='DonkeyDosing')){
-		""
-		# TODO: docs
+		"Extract coefficient estimates for entering into the dosing tool"
 
 		if(!.self$run){
 			stop('No coefficients available for writing: run FitPredictionModel() first')
@@ -533,9 +610,8 @@ DonkeyDosing <- setRefClass('DonkeyDosing',
 		return(output)
 	},
 
-	GetPredictions = function(year, farm, excel_file, excel_sheet=farm, weeks='all', dosing_thresholds=c(600,1000,2000), prob_threshold=0.35, PMcoefs=system.file('extdata/PMcoefs.Rdata', package='DonkeyDosing')){
-		""
-		# TODO: docs
+	GetPredictions = function(year, farm, excel_file, excel_sheet=farm, weeks='all', dosing_thresholds=c(600,1000,2000), prob_threshold=0.35, PMcoefs=system.file('extdata/PMcoefs.Rdata', package='DonkeyDosing'), cl=getOption("mc.cores", 2L)){
+		"Extract predictions for checking model estimates"
 
 		if(!.self$run){
 			stop('Unable to make predictions as the model has not yet been run')
@@ -543,7 +619,6 @@ DonkeyDosing <- setRefClass('DonkeyDosing',
 
 		# TODO: check year is present in weather data, then re-calculate rolling weather - addweathersheet should not set run=FALSE but maybe note if run=TRUE and weather added
 		# TODO: Check that the weather data extends as far back and forward as necessary for the fec data
-
 		# TODO: process weeks argument and pass to underlying function
 
 		stopifnot(length(dosing_thresholds)==3 && all(dosing_thresholds>0))
@@ -617,7 +692,7 @@ DonkeyDosing <- setRefClass('DonkeyDosing',
 		  left_join(numani, by = c("Farm", "Location", "Year")) %>%
 			ungroup()
 
-		predout <- forward_predict(samplings=samplings, fec_data=fec_data, rollingweather=rollingweather, models=predmods$allyears, expected_efficacy=predmods$expected_efficacy, threshold=max(dosing_thresholds), min_week=min_week, max_week=max_week, year=year)
+		predout <- forward_predict(samplings=samplings, fec_data=fec_data, rollingweather=rollingweather, models=predmods$allyears, expected_efficacy=predmods$expected_efficacy, threshold=max(dosing_thresholds), min_week=min_week, max_week=max_week, year=year, cl=cl)
 
 		# Then call getcoefs so we can extract the PM model:
 		coefs <- .self$GetCoefficients(write=FALSE, PMcoefs=PMcoefs)
@@ -701,11 +776,11 @@ DonkeyDosing <- setRefClass('DonkeyDosing',
 			stop(paste0('Required year missing from the weather data: ', years[! years %in% .self$Weather$Year][1]))
 		}
 
-		if(!all(min(years):max(years))){
-			stop('Non-consecutive years are not supported')
-		}
 		if(length(years)<2){
-			stop('A minimum of 2 years must be specified')
+		  stop('A minimum of 2 years must be specified')
+		}
+		if(!all(years %in% min(as.numeric(years)):max(as.numeric(years)))){
+			stop('Non-consecutive years are not supported')
 		}
 
 		# See if the data is already ready:

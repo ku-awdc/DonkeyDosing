@@ -62,7 +62,7 @@ get_prediction_models <- function(gpdata, allfec, rollingweather, group_model, e
 	allyearfarms <- gpdata %>%
 		group_by(.data$Farm, .data$Year) %>%
 		summarise() %>%
-		ungroup
+		ungroup()
 
 	# Loop through with sequential exclusion:
 	predicted <- rep(FALSE, nrow(allfec))
@@ -151,7 +151,7 @@ get_prediction_models <- function(gpdata, allfec, rollingweather, group_model, e
 	close(pb)
 
 	stopifnot(all(predicted))
-	fecpred <- allfec %>% select(.data$Year, .data$Week, .data$Monday, .data$AnimalID, .data$Location, .data$FEC, .data$Count, .data$Dose, .data$LastDose, .data$Farm, .data$Hygiene, .data$Tag, .data$Sex, .data$Age, .data$AgeCat, .data$GroupPredictionIncTx, .data$GroupPredictionNoTx)
+	fecpred <- allfec %>% select("Year", "Week", "Monday", "AnimalID", "Location", "FEC", "Count", "Dose", "LastDose", "Farm", "Hygiene", "Tag", "Sex", "Age", "AgeCat", "GroupPredictionIncTx", "GroupPredictionNoTx")
 
 	fakedata1 <- do.call('rbind', tfake1)
 	fakedata2 <- do.call('rbind', tfake2)
@@ -163,15 +163,18 @@ get_prediction_models <- function(gpdata, allfec, rollingweather, group_model, e
 	fakedata2$PredSingle <- exp(fakedata2$pred_single)
 	fakedata3$PredExclusion <- exp(fakedata3$pred_exclusion)
 
-	exclusionplot1 <- ggplot(fakedata1, aes_string(x="Week", y="PredExclusion", col="Hygiene")) +
+	exclusionplot1 <- ggplot(fakedata1, aes(x=.data[["Week"]], y=.data[["PredExclusion"]], col=.data[["Hygiene"]])) +
 		geom_line() +
-		facet_grid(Year~Farm) +
+		facet_grid(.data$Year~.data$Farm) +
 		ylim(0,1500)
 
-	exclusionplot2 <- ggplot(fakedata2, aes_string(x="Week", y="PredExclusion", col="Hygiene")) +
+	exclusionplot2 <- ggplot(fakedata2, aes(x=.data[["Week"]], y=.data[["PredExclusion"]], col=.data[["Hygiene"]])) +
 		geom_line() +
-		facet_grid(Year~Farm) +
+		facet_grid(.data$Year~.data$Farm) +
 		ylim(0,1500)
+
+	## For saving for clinical use:
+	group_data_output <- list(pred=fakedata1, obs=fakedata3, model=gpmodel)
 
 	## Far too many panels:
 	if(FALSE){
@@ -179,22 +182,22 @@ get_prediction_models <- function(gpdata, allfec, rollingweather, group_model, e
 			group_by(.data$Week, .data$Location, .data$Year) %>%
 			summarise(meanLogFEC = mean(log(.data$FEC+1))) %>%
 			ungroup
-		exclusionplot3 <- ggplot(fakedata3, aes_string(x="Week", y="PredExclusion", col="Year", group="Year")) +
+		exclusionplot3 <- ggplot(fakedata3, aes(x=.data[["Week"]], y=.data[["PredExclusion"]], col=.data[["Year"]], group=.data[["Year"]])) +
 			geom_line() +
 			facet_wrap(~Location) +
 			geom_point(aes(x=Week, y=exp(meanLogFEC)), meanfec) +
 			ylim(0,1500)
 	}
 
-	combinedplot1 <- ggplot(fakedata1, aes_string(x="Week", y="PredSingle", col="Hygiene")) +
+	combinedplot1 <- ggplot(fakedata1, aes(x=.data[["Week"]], y=.data[["PredSingle"]], col=.data[["Hygiene"]])) +
 		geom_line() +
-		facet_grid(Year~Farm) +
+		facet_grid(.data$Year~.data$Farm) +
 		ylim(0,1500) +
 		xlim(13, 47)
 
-	combinedplot2 <- ggplot(fakedata2, aes_string(x="Week", y="PredSingle", col="Hygiene")) +
+	combinedplot2 <- ggplot(fakedata2, aes(x=.data[["Week"]], y=.data[["PredSingle"]], col=.data[["Hygiene"]])) +
 		geom_line() +
-		facet_grid(Year~Farm) +
+		facet_grid(.data$Year~.data$Farm) +
 		ylim(0,1500) +
 		xlim(13, 47)
 
@@ -213,7 +216,7 @@ get_prediction_models <- function(gpdata, allfec, rollingweather, group_model, e
 
 		ggplot(fakedata1 %>% filter(.data$Week >= min_week, .data$Week <= max_week), aes(x=FakeDate, y=PredSingle, col=Hygiene)) +
 			geom_line() +
-			facet_grid(Year~Farm) +
+			facet_grid(.data$Year~.data$Farm) +
 			ylim(0,1500) +
 			scale_x_date(date_breaks='1 month', labels = date_format("%B")) +
 			theme(axis.text.x = element_text(angle = 90, hjust = 1)) +
@@ -224,7 +227,7 @@ get_prediction_models <- function(gpdata, allfec, rollingweather, group_model, e
 
 		ggplot(fakedata2 %>% filter(.data$Week >= min_week, .data$Week <= max_week), aes(x=FakeDate, y=PredSingle, col=Hygiene)) +
 			geom_line() +
-			facet_grid(Year~Farm) +
+			facet_grid(.data$Year~.data$Farm) +
 			ylim(0,1500) +
 			scale_x_date(date_breaks='1 month', labels = date_format("%B")) +
 			theme(axis.text.x = element_text(angle = 90, hjust = 1)) +
@@ -325,7 +328,7 @@ get_prediction_models <- function(gpdata, allfec, rollingweather, group_model, e
 		select(-.data$meanFEC) %>%
 		ungroup() %>%
 		mutate(Year=as.numeric(as.character(.data$Year))+1) %>%
-		filter(Year <= max(as.numeric(as.character(fecpred$Year)))) %>%
+		filter(.data$Year <= max(as.numeric(as.character(fecpred$Year)))) %>%
 		mutate(Year = factor(.data$Year, levels=levels(allfec$Year)))
 
 
@@ -569,13 +572,13 @@ get_prediction_models <- function(gpdata, allfec, rollingweather, group_model, e
 	fecpred$totpred <- with(fecpred, commonoffset+groupoffset+indoffset)
 	# ggplot(fecpred, aes(totpred, Obs)) + geom_point() + stat_smooth(method='lm') + geom_abline(slope=1,intercept=0)
 	fecpred$FakeCount <- round(fecpred$Count) # Round the occasional non-integer Count (Moredun method etc)
-	nbmod <- glm.nb(FakeCount ~ 0 + totpred, data=fecpred, weights=log(100/Sensitivity))
+	nbmod <- glm.nb(FakeCount ~ 0 + totpred, data=fecpred, weights=log(100/fecpred$Sensitivity))
 	resid_sd <- sqrt(1/nbmod$theta)
 	# Similar to:  sd(resid(nbmod))
 
 	cat('Done\n')
 
-	rval <- list(group=gpmodel, common=commonmod, residual_4=gpmod4, residual_8=gpmod8, residual_12=gpmod12, ind_0=indmod0, ind_4=indmod4, ind_8=indmod8, ind_12=indmod12, residual_sd=resid_sd, all_coefs=newcoefs, group_exclusion_coefs=allcoefs, centering=centering, hygiene_levels=levels(gpdata$FarmHygiene), plots=list(exclusionplot1=exclusionplot1, exclusionplot2=exclusionplot2, combinedplot1=combinedplot1, combinedplot2=combinedplot2), convergence=convergence, settings=list(expected_efficacy=expected_efficacy, min_N=min_N, min_week=min_week, max_week=max_week))
+	rval <- list(group=gpmodel, common=commonmod, residual_4=gpmod4, residual_8=gpmod8, residual_12=gpmod12, ind_0=indmod0, ind_4=indmod4, ind_8=indmod8, ind_12=indmod12, residual_sd=resid_sd, all_coefs=newcoefs, group_exclusion_coefs=allcoefs, centering=centering, hygiene_levels=levels(gpdata$FarmHygiene), group_data_output=group_data_output, plots=list(exclusionplot1=exclusionplot1, exclusionplot2=exclusionplot2, combinedplot1=combinedplot1, combinedplot2=combinedplot2), convergence=convergence, settings=list(expected_efficacy=expected_efficacy, min_N=min_N, min_week=min_week, max_week=max_week))
 
 	return(rval)
 

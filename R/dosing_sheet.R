@@ -1,4 +1,4 @@
-dosing_sheet <- function(year, farm, excel_file, excel_sheet, all_locations){
+dosing_sheet <- function(year, farm, excel_file, excel_sheet, all_locations, silent=FALSE){
 
 	if(!is.numeric(year) || length(year)!=1 || year < 2000 || year > 3000)
 		stop('The specified year argument must be numeric of length 1 (in the range 2000-3000)')
@@ -30,7 +30,7 @@ dosing_sheet <- function(year, farm, excel_file, excel_sheet, all_locations){
 	dnames[is.na(dnames)] <- paste0('blank', 1:sum(is.na(dnames)))
 
 	# Then read the data and remove spaces from column names:
-	data <- read_excel(excel_file, sheet=excel_sheet, col_types='text', col_names=TRUE, .name_repair='unique')
+	data <- read_excel(excel_file, sheet=excel_sheet, col_types='text', col_names=TRUE, .name_repair='minimal')
 	names(data) <- dnames
 
 	# The first 7 column names must the following (even though ClinicalRisk is not available pre-2018):
@@ -66,7 +66,7 @@ dosing_sheet <- function(year, farm, excel_file, excel_sheet, all_locations){
 	# Remove the first row (dates) and any white space at the bottom:
 	data <- data %>%
 		slice(-1) %>%
-		filter(!is.na(Name) | !is.na(Tag))
+		filter(!is.na(.data$Name) | !is.na(.data$Tag))
 
 	# The columns that cannot be blank:
 	if(any(is.na(data$Name)))
@@ -81,18 +81,22 @@ dosing_sheet <- function(year, farm, excel_file, excel_sheet, all_locations){
 	# Find locations that aren't listed in the locations sheet:
 	data$Field <- data$Location
 	data$Location <- gsub('[[:space:]]','',paste(farm,data$Location,sep='_'))
-	nolocmatch <- data %>% filter(!Location %in% lmatch$Location)
+	nolocmatch <- data %>% filter(!.data$Location %in% lmatch$Location)
 	if(nrow(nolocmatch)>0){
 		nani <- nrow(nolocmatch)
 		nolocmatch <- nolocmatch %>% group_by(.data$Field) %>% tally
-		cat('\tNote: A total of ', nani, ' animals at the following invalid locations will not be used in the model:\n', sep='')
-		for(r in seq_len(nrow(nolocmatch))){
-			cat('\t\t', nolocmatch$Field[r], ' (N=', nolocmatch$n[r], ')\n', sep='')
+		if(!silent){
+  		cat('\tNote: A total of ', nani, ' animals at the following invalid locations will not be used in the model:\n', sep='')
+  		for(r in seq_len(nrow(nolocmatch))){
+  			cat('\t\t', nolocmatch$Field[r], ' (N=', nolocmatch$n[r], ')\n', sep='')
+  		}
 		}
 	}
+
 	data$Location[! data$Location %in% lmatch$Location] <- NA
-	if(sum(!is.na(data$Location))==0)
-		stop('No rows with valid locations were found in the data')
+	if(sum(!is.na(data$Location))==0){
+	  stop('No rows with valid locations were found in the data')
+	}
 
 	data$Age[data$Age %in% c('<1')] <- 0
 	numconv <- as.numeric(data$Age)
@@ -144,9 +148,9 @@ dosing_sheet <- function(year, farm, excel_file, excel_sheet, all_locations){
 	sensitivity <- lmatch$Sensitivity
 	names(sensitivity) <- lmatch$Location
 	fecdata <- data %>% select(.data$AnimalID, .data$Location, .data$Year, matches('^F[[:digit:]]'), matches('^T[[:digit:]]')) %>%
-		gather(Observation, Value, -.data$AnimalID, -.data$Location, -.data$Year) %>%
+		gather("Observation", "Value", -.data$AnimalID, -.data$Location, -.data$Year) %>%
 		matchweek(sensitivity, week_offset, errstr=paste(farm,year)) %>%
-		ungroup
+		ungroup()
 
 	allfec <- as.data.frame(fecdata) %>% filter(!is.na(.data$AnimalID), !is.na(.data$Year))
 

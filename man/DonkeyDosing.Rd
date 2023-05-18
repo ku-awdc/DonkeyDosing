@@ -11,6 +11,8 @@
 \item{excel_sheet}{the relevant sheet number/name within the excel file}
 
 \item{year}{the farm relevant to the FEC data to be read (length 1 character)}
+
+\item{cl}{the number of cores on which to run parallel computation (or a cluster created by makeCluster or similar)}
 }
 \value{
 An object of class DonkeyDosing.
@@ -26,13 +28,38 @@ This class is written using an OOP-style of programming, so that the data can be
 \describe{
 \item{\code{AddDosingSheet(year, farm, excel_file, excel_sheet = farm)}}{Add animal-level FEC and dosing information for a given farm and year from an existing dosing spreadsheet}
 
-\item{\code{AddLocations(year, excel_file, excel_sheet = 1)}}{Add farm location information for a given year}
+\item{\code{AddLocations(year, excel_file)}}{Add farm location information for a given year}
 
 \item{\code{AddWeatherSheet(weather_file, years = "all", replace = TRUE, ...)}}{Add weather data for one or more years from either an Excel or CSV file}
 
+\item{\code{FitPredictionModel(formula = NA, years = "last10", comparison = FALSE)}}{Fit the prediction model}
+
+\item{\code{GetCoefficients(
+  write = TRUE,
+  coefs_file = "effect_etimates.csv",
+  sexcodes_file = "sex_codes.csv",
+  PMcoefs = system.file("extdata/PMcoefs.Rdata", package = "DonkeyDosing")
+)}}{Extract coefficient estimates for entering into the dosing tool}
+
 \item{\code{GetGroupModelData(years = "all", force_reprocess = FALSE)}}{Prepare and retrieve the currently loaded location/animal/FEC/weather data for modelling}
 
+\item{\code{GetPlots(farm, year = "latest", file = "", ...)}}{Extract plots showing model fit/predictions for each farm and year requested}
+
+\item{\code{GetPredictions(
+  year,
+  farm,
+  excel_file,
+  excel_sheet = farm,
+  weeks = "all",
+  dosing_thresholds = c(600, 1000, 2000),
+  prob_threshold = 0.35,
+  PMcoefs = system.file("extdata/PMcoefs.Rdata", package = "DonkeyDosing"),
+  cl = getOption("mc.cores", 2L)
+)}}{Extract predictions for checking model estimates}
+
 \item{\code{LoadDataArchive(archive_file, years = "all")}}{Load location/animal/FEC/weather data from an archive file}
+
+\item{\code{LoadPredictionModel(saved)}}{This function is only needed for testing purposes}
 
 \item{\code{Reset()}}{Reset the DonkeyDosing object (clear all data)}
 

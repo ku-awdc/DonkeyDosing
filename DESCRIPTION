@@ -1,7 +1,8 @@
 Package: DonkeyDosing
 Type: Package
 Title: Support software for the Donkey Sanctuary dosing support tool
-Version: 0.9.9-1
+Version: 1.0.2-1
+Date: 2023-05-18
 Authors@R: c(person("Matthew", "Denwood", role=c("aut","cre"), email="md@sund.ku.dk"),
              person("Stuart", "Norris", role="ctb"))
 Maintainer: Matthew Denwood <md@sund.ku.dk>
@@ -18,9 +19,8 @@ Depends:
 Imports:
 	stats,
 	methods,
-	parallel,
+	pbapply,
 	MASS,
-	hellno,
 	dplyr,
 	ggplot2,
 	broom,
@@ -29,18 +29,19 @@ Imports:
 	rlang,
 	stringr,
 	readxl,
+	readr,
+	tidyr,
 	lmerTest,
 	lme4,
 	imputeTS,
-	pbapply,
 	testthat,
-	RJSONIO
+	RJSONIO,
+  writexl
 Suggests: 
-    R.rsp,
-    writexl
+  R.rsp
 VignetteBuilder: R.rsp
 License: GPL-3 | file LICENSE
 URL: https://github.com/ku-awdc/DonkeyDosing
 Encoding: UTF-8
 LazyData: true
-RoxygenNote: 7.1.2
+RoxygenNote: 7.2.3

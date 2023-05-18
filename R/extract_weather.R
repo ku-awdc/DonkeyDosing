@@ -10,8 +10,7 @@
 #' @importFrom pbapply pblapply
 #' @importFrom imputeTS na_kalman
 #' @importFrom stringr str_count
-#'
-#' @return
+#' @importFrom readr read_csv write_csv
 #'
 #' @export
 extract_weather <- function(path, year = format(Sys.Date(), "%Y"), use_cache = TRUE, impute_missing = FALSE, include_date = FALSE, type="OpenWeather"){
@@ -86,7 +85,7 @@ extract_weather <- function(path, year = format(Sys.Date(), "%Y"), use_cache = T
   alldata <- bind_rows(cache, alldata)
   alldata |>
     full_join(data.frame(Date = seq(min(alldata$Date), max(alldata$Date), by=1L)), by="Date") |>
-    arrange(Date) ->
+    arrange(.data$Date) ->
     alldata
 
   ## Optionally impute missing:

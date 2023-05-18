@@ -26,9 +26,6 @@ extract_weather(
 
 \item{type}{the source type for weather data (only OpenWeather is currently permitted)}
 }
-\value{
-
-}
 \description{
 Read weather from a local cache and format it for use with the Donkey Dosing model
 }

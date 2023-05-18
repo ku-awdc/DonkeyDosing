@@ -6,10 +6,10 @@ internalpath <- system.file('extdata', package='DonkeyDosing')
 
 container <- DonkeyDosing()
 
-container$AddLocations(2001, file.path(internalpath, 'ExampleData2001.xlsx'), 'Locations')
-container$AddLocations(2002, file.path(internalpath, 'ExampleData2002.xlsx'), 'Locations')
+container$AddLocations(2001, file.path(internalpath, 'ExampleData2001.xlsx'))
+container$AddLocations(2002, file.path(internalpath, 'ExampleData2002.xlsx'))
 # Should error:
-err <- try(container$AddLocations(2001, file.path(internalpath, 'ExampleData.xlsx'), 'Locations'), silent=TRUE)
+err <- try(container$AddLocations(2001, file.path(internalpath, 'ExampleData.xlsx')), silent=TRUE)
 stopifnot(inherits(err,'try-error'))
 
 container$AddDosingSheet(2001, 'Fruits', file.path(internalpath, 'ExampleData2001.xlsx'))
@@ -85,7 +85,7 @@ ff <- meanLogFEC ~ (1 | LocationYear) + DoseProp4 + DoseProp8 +
 
 container <- DonkeyDosing()
 container$LoadDataArchive(system.file('extdata/ExampleDataArchive.Rdata', package='DonkeyDosing'))
-allmod <- container$FitPredictionModel(ff)
+allmod <- container$FitPredictionModel(ff, years="all")
 coefs <- container$GetCoefficients(write=FALSE)
 coefs
 
@@ -93,7 +93,7 @@ file <- internalpath <- system.file('extdata/ExampleData2002.xlsx', package='Don
 #for(fm in unique(container$Locations$Farm))
 #  container$AddDosingSheet(2018, fm, file)
 fm <- 'Fruits'
-preds <- container$GetPredictions(2002, fm, file)
+preds <- container$GetPredictions(2002, fm, file, cl=2L)
 
 
 summary(allmod$group)
@@ -115,7 +115,7 @@ if(FALSE){
   container$LoadDataArchive(file)
 
   file <- '/Users/matthewdenwood/Documents/Research/Projects/Donkey Sanctuary 2/Final/Deliverables/Data/Dosing Tool 2018.xlsx'
-container$AddLocations(2018, file, 'Locations')
+container$AddLocations(2018, file)
 for(fm in unique(container$Locations$Farm))
   container$AddDosingSheet(2018, fm, file)
 
@@ -202,7 +202,7 @@ res_sd <- coefs[coefs[,1]=='ResidualSD',2]
 predconf <- data.frame(PredictedAnimalMean=seq(0,2500,by=100)) %>%
   mutate(LogMean=log(PredictedAnimalMean+1)) %>%
   mutate(MeanPred=exp(LogMean)-1, UPred=exp(LogMean+1.96*res_sd)-1, LPred=exp(LogMean-1.96*res_sd)-1) %>%
-  gather(Type, ObservedFEC, -PredictedAnimalMean, -LogMean)
+  gather("Type", "ObservedFEC", -PredictedAnimalMean, -LogMean)
 
 ggplot(preds$allprobs %>% filter(LastDose > 8), aes(PredictedAnimalMean, ObservedFEC)) +
   geom_point() +

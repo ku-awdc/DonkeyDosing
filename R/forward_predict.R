@@ -1,4 +1,4 @@
-forward_predict <- function(samplings, fec_data, rollingweather, models, expected_efficacy, threshold, min_week, max_week, year){
+forward_predict <- function(samplings, fec_data, rollingweather, models, expected_efficacy, threshold, min_week, max_week, year, cl){
 
 	models$group
 	models$common
@@ -14,12 +14,12 @@ forward_predict <- function(samplings, fec_data, rollingweather, models, expecte
 	red <- 1-expected_efficacy
 
 	cat('Getting predictions...\n')
-	
+
 	getpred <- function(row){
 
 		allanimals <- fec_data %>%
-			filter(Location == samplings$Location[row]) %>%
-			group_by(AnimalID) %>%
+			filter(.data$Location == samplings$Location[row]) %>%
+			group_by(.data$AnimalID) %>%
 			tally()
 
 		# Need to make group predictions for 4,8,12 weeks back as well as current:
@@ -33,77 +33,77 @@ forward_predict <- function(samplings, fec_data, rollingweather, models, expecte
 
 			# Extract data for which a prediction is being made:
 			predict_data <- fec_data %>%
-				filter(Location == samplings$Location[row], Week %in% (targetweek - 0:24)) %>%
-				select(AnimalID, Week, FEC, Dose, LastDose)
+				filter(.data$Location == samplings$Location[row], .data$Week %in% (targetweek - 0:24)) %>%
+				select("AnimalID", "Week", "FEC", "Dose", "LastDose")
 			# Get date of last dose in 1 of 2 ways depending on if the last obs was a treatment:
 			lastdosedate1 <- predict_data %>%
-				filter(Week < mindoseweek) %>%
-				group_by(AnimalID) %>%
-				arrange(Week) %>%
+				filter(.data$Week < mindoseweek) %>%
+				group_by(.data$AnimalID) %>%
+				arrange(.data$Week) %>%
 				slice(n()) %>%
-				mutate(LastDoseWeek = Week - LastDose, Type=1) %>%
-				select(AnimalID, LastDoseWeek)
+				mutate(LastDoseWeek = .data$Week - .data$LastDose, Type=1) %>%
+				select("AnimalID", "LastDoseWeek")
 			lastdosedate2 <- predict_data %>%
-				filter(Week < mindoseweek) %>%
-				group_by(AnimalID) %>%
-				arrange(Week) %>%
-				filter(Dose) %>%
+				filter(.data$Week < mindoseweek) %>%
+				group_by(.data$AnimalID) %>%
+				arrange(.data$Week) %>%
+				filter(.data$Dose) %>%
 				slice(n()) %>%
-				mutate(LastDoseWeek = Week, Type=2) %>%
-				select(AnimalID, LastDoseWeek)
+				mutate(LastDoseWeek = .data$Week, Type=2) %>%
+				select("AnimalID", "LastDoseWeek")
 			lastdose <- rbind(lastdosedate1, lastdosedate2) %>%
-					group_by(AnimalID) %>%
-					summarise(LastDoseWeek = max(LastDoseWeek, na.rm=TRUE))
+					group_by(.data$AnimalID) %>%
+					summarise(LastDoseWeek = max(.data$LastDoseWeek, na.rm=TRUE))
 
 			allweeksani <- expand.grid(Week=targetweek-(0:24), AnimalID=unique(fec_data$AnimalID))
 			predict_data <- merge(predict_data, allweeksani, all=TRUE) %>%
-				group_by(AnimalID) %>%
-				arrange(AnimalID, Week) %>%
-				mutate(fec4wk = apply(vapply(3:5, function(x) lag(log(FEC+1), x), numeric(length(FEC))), 1, mean, na.rm=TRUE)) %>%
-				mutate(dose5_12wk = apply(vapply(5:12, function(x) lag(Dose, x), logical(length(Dose))), 1, any, na.rm=TRUE)) %>%
-				mutate(dose5_16wk = apply(vapply(5:16, function(x) lag(Dose, x), logical(length(Dose))), 1, any, na.rm=TRUE)) %>%
-				mutate(fec8wk = apply(vapply(7:9, function(x) lag(log(FEC+1), x), numeric(length(FEC))), 1, mean, na.rm=TRUE)) %>%
-				mutate(dose9_16wk = apply(vapply(9:16, function(x) lag(Dose, x), logical(length(Dose))), 1, any, na.rm=TRUE)) %>%
-				mutate(dose9_20wk = apply(vapply(9:20, function(x) lag(Dose, x), logical(length(Dose))), 1, any, na.rm=TRUE)) %>%
-				mutate(fec12wk = apply(vapply(11:13, function(x) lag(log(FEC+1), x), numeric(length(FEC))), 1, mean, na.rm=TRUE)) %>%
-				mutate(dose13_20wk = apply(vapply(13:20, function(x) lag(Dose, x), logical(length(Dose))), 1, any, na.rm=TRUE)) %>%
-				mutate(dose13_24wk = apply(vapply(13:24, function(x) lag(Dose, x), logical(length(Dose))), 1, any, na.rm=TRUE)) %>%
+				group_by(.data$AnimalID) %>%
+				arrange(.data$AnimalID, .data$Week) %>%
+				mutate(fec4wk = apply(vapply(3:5, function(x) lag(log(.data$FEC+1), x), numeric(length(.data$FEC))), 1, mean, na.rm=TRUE)) %>%
+				mutate(dose5_12wk = apply(vapply(5:12, function(x) lag(.data$Dose, x), logical(length(.data$Dose))), 1, any, na.rm=TRUE)) %>%
+				mutate(dose5_16wk = apply(vapply(5:16, function(x) lag(.data$Dose, x), logical(length(.data$Dose))), 1, any, na.rm=TRUE)) %>%
+				mutate(fec8wk = apply(vapply(7:9, function(x) lag(log(.data$FEC+1), x), numeric(length(.data$FEC))), 1, mean, na.rm=TRUE)) %>%
+				mutate(dose9_16wk = apply(vapply(9:16, function(x) lag(.data$Dose, x), logical(length(.data$Dose))), 1, any, na.rm=TRUE)) %>%
+				mutate(dose9_20wk = apply(vapply(9:20, function(x) lag(.data$Dose, x), logical(length(.data$Dose))), 1, any, na.rm=TRUE)) %>%
+				mutate(fec12wk = apply(vapply(11:13, function(x) lag(log(.data$FEC+1), x), numeric(length(.data$FEC))), 1, mean, na.rm=TRUE)) %>%
+				mutate(dose13_20wk = apply(vapply(13:20, function(x) lag(.data$Dose, x), logical(length(.data$Dose))), 1, any, na.rm=TRUE)) %>%
+				mutate(dose13_24wk = apply(vapply(13:24, function(x) lag(.data$Dose, x), logical(length(.data$Dose))), 1, any, na.rm=TRUE)) %>%
 				ungroup() %>%
-				filter(Week == targetweek)
+				filter(.data$Week == targetweek)
 
 			# Merge back with animal level data:
-			predict_data <- merge(predict_data, fec_data %>% group_by(AnimalID, Location, Farm, Year, Sex, Age, AgeCat, Hygiene, AvFEC) %>% summarise, all.x=TRUE) %>%
-				filter(Location == samplings$Location[row])
+			predict_data <- merge(predict_data, fec_data %>% group_by(.data$AnimalID, .data$Location, .data$Farm, .data$Year, .data$Sex, .data$Age, .data$AgeCat, .data$Hygiene, .data$AvFEC) %>% summarise(), all.x=TRUE) %>%
+				filter(.data$Location == samplings$Location[row])
 			# And last dose date:
 			predict_data <- merge(predict_data, lastdose, all.x=TRUE) %>%
-				mutate(LastDoseWeek = ifelse(is.na(LastDoseWeek), -Inf, LastDoseWeek), LastDose = Week - LastDoseWeek) %>%
-				select(-LastDoseWeek)
+				mutate(LastDoseWeek = ifelse(is.na(.data$LastDoseWeek), -Inf, .data$LastDoseWeek), LastDose = .data$Week - .data$LastDoseWeek) %>%
+				select(-.data$LastDoseWeek)
 
 			stopifnot(all(predict_data$LastDoseWeek <= targetweek, na.rm=TRUE))
 			stopifnot(all(table(predict_data$AnimalID) %in% c(0,1)))
 
 			# Calculate group info for each week to predict:
 			group_data <- predict_data %>%
-				filter(Location == samplings$Location[row]) %>%
-				group_by(Farm, Location, Hygiene) %>%
-				summarise(TotalFEC = n(), MeanAge = mean(Age, na.rm=TRUE), DosedWithin4 = sum(LastDose <= 4),
-					DosedWithin8 = sum(LastDose <= 8)-DosedWithin4, DosedWithin12 = sum(LastDose <= 12)-(DosedWithin4+DosedWithin8)) %>%
+				filter(.data$Location == samplings$Location[row]) %>%
+				group_by(.data$Farm, .data$Location, .data$Hygiene) %>%
+				summarise(TotalFEC = n(), MeanAge = mean(.data$Age, na.rm=TRUE), DosedWithin4 = sum(.data$LastDose <= 4),
+					DosedWithin8 = sum(.data$LastDose <= 8)-.data$DosedWithin4, DosedWithin12 = sum(.data$LastDose <= 12)-(.data$DosedWithin4+.data$DosedWithin8)) %>%
 				# This reflects the expected reduction in mean count due to dosing proportion of animals (NOT TotalFEC):
 				mutate(TotalAnimals = nrow(allanimals)) %>%
-				mutate(DoseProp4 = log(1 * (TotalAnimals-DosedWithin4)/TotalAnimals + red * DosedWithin4/TotalAnimals)) %>%
-				mutate(DoseProp8 = log(1 * (TotalAnimals-DosedWithin8)/TotalAnimals + red * DosedWithin8/TotalAnimals)) %>%
-				mutate(DoseProp12 = log(1 * (TotalAnimals-DosedWithin12)/TotalAnimals + red * DosedWithin12/TotalAnimals)) %>%
+				mutate(DoseProp4 = log(1 * (.data$TotalAnimals-.data$DosedWithin4)/.data$TotalAnimals + red * .data$DosedWithin4/.data$TotalAnimals)) %>%
+				mutate(DoseProp8 = log(1 * (.data$TotalAnimals-.data$DosedWithin8)/.data$TotalAnimals + red * .data$DosedWithin8/.data$TotalAnimals)) %>%
+				mutate(DoseProp12 = log(1 * (.data$TotalAnimals-.data$DosedWithin12)/.data$TotalAnimals + red * .data$DosedWithin12/.data$TotalAnimals)) %>%
 				mutate(Year=year, Week=targetweek) %>%
-				select(Farm, Location, Hygiene, Year, Week, TotalAnimals, TotalFEC, MeanAge, DoseProp4, DoseProp8, DoseProp12) %>%
-			  ungroup
+				select("Farm", "Location", "Hygiene", "Year", "Week", "TotalAnimals", "TotalFEC", "MeanAge", "DoseProp4", "DoseProp8", "DoseProp12") %>%
+			  ungroup()
 
 			# Merge with weather info and create cdoy etc:
 			stopifnot(group_data$Year %in% as.character(levels(rollingweather$Year)))
 			group_data$Year <- factor(group_data$Year, levels=levels(rollingweather$Year))
 			group_data <- group_data %>% inner_join(rollingweather, by = c("Year", "Week")) %>%
-				mutate(Year = '0', LocationYear = '0', sdoy = sin(2*pi*Week/52), cdoy = cos(2*pi*Week/52))
+				mutate(Year = '0', LocationYear = '0', sdoy = sin(2*pi*.data$Week/52), cdoy = cos(2*pi*.data$Week/52))
 			stopifnot(nrow(group_data)==1)
-			group_data$FarmHygiene <- with(group_data, paste(Farm, Hygiene, sep='_'))
+			group_data$FarmHygiene <- paste(group_data$Farm, group_data$Hygiene, sep='_')
 
 			# Make group prediction and calculate the group residual if necessary:
 			if(gp < 4){
@@ -118,11 +118,11 @@ forward_predict <- function(samplings, fec_data, rollingweather, models, expecte
 				group_prediction <- predict(models$group, newdata=group_data, allow.new.levels=TRUE)
 			}
 		}
-		
+
 		# This should agree with the intercept Coefficients $ L7 in Excel:
 		# exp(group_prediction)-1
 		# Note: past_predictions and group_residual can also be compared to Excel values
-		
+
 		# The individual data should be for the relevant week:
 		stopifnot(targetweek == samplings$Week[row]+4)
 		stopifnot(all(predict_data$Location == samplings$Location[row]))
@@ -130,7 +130,7 @@ forward_predict <- function(samplings, fec_data, rollingweather, models, expecte
 
 		# Add the group prediction and residuals:
 		predict_data$GroupPredictionNoTx <- group_prediction
-		
+
 		predict_data$residual_location4 <- group_residual[3] - models$centering['res4mean']
 		predict_data$residual_location8 <- group_residual[2] - models$centering['res8mean']
 		predict_data$residual_location12 <- group_residual[1] - models$centering['res12mean']
@@ -179,13 +179,13 @@ forward_predict <- function(samplings, fec_data, rollingweather, models, expecte
 		td$AnimalID <- '0'
 		predict_data$predictedmean <- predict(models$common, newdata=td, allow.new.levels=TRUE)
 		stopifnot(all(!is.na(predict_data$predictedmean)))
-		
+
 		# Probability of going over the threshold:
 		predict_data$ThresholdProbability <- round(1-pnorm(log(threshold+1), predict_data$predictedmean, models$residual_sd), 2)
 		predict_data$PredictedGroupMean <- round(exp(predict_data$GroupPredictionNoTx)-1, 0)
 		predict_data$PredictedAnimalMean <- round(exp(predict_data$predictedmean)-1, 0)
-		
-		newprobs <- predict_data %>% mutate(Farm=samplings$Farm[row]) %>% select(Farm, Location, Week, AnimalID, LastFEC, PredictedGroupMean, PredictedAnimalMean, ThresholdProbability, ObservedFEC=FEC, LastDose)
+
+		newprobs <- predict_data %>% mutate(Farm=samplings$Farm[row]) %>% select("Farm", "Location", "Week", "AnimalID", "LastFEC", "PredictedGroupMean", "PredictedAnimalMean", "ThresholdProbability", ObservedFEC="FEC", "LastDose")
 		stopifnot(all(newprobs$Location == samplings$Location[row]))
 
 		return(newprobs)
@@ -193,7 +193,7 @@ forward_predict <- function(samplings, fec_data, rollingweather, models, expecte
 	}
 
 	#allprobs <- lapply(1:nrow(samplings), getpred)
-	allprobs <- mclapply(1:nrow(samplings), getpred)
+	allprobs <- pblapply(1:nrow(samplings), getpred, cl=cl)
 	allprobs <- do.call('rbind', allprobs)
 	stopifnot(all(allprobs$Location %in% samplings$Location))
 
